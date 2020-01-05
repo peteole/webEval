@@ -3,9 +3,9 @@ using System.Net;
 using HtmlAgilityPack;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-//using ExCSS;
+using ExCSS;
 using System.IO;
-namespace webGrader
+namespace webGrader2
 {
     class Program
     {
@@ -16,14 +16,37 @@ namespace webGrader
         }
         static void Main(string[] args)
         {
-            WebpageEvaluation evaluation = new WebpageEvaluation("Home.html", "Website_final/");
+            Console.WriteLine("Enter file path to evaluate (for example \"/home/olep/Dropbox/webdesign/\"");
+            string path = Console.ReadLine();
+            string[] folders = Directory.GetDirectories(path);
+            string[] gradings = new string[folders.Length];
+            int i = 0;
+            foreach (string folder in folders)
+            {
+                WebpageEvaluation e;
+                if (File.Exists(folder + "home.html"))
+                {
+                    e = new WebpageEvaluation("/home.html", folder);
+                }
+                else
+                {
+                    string[] htmlFiles = Directory.GetFiles(folder, "*.html");
+                    string[] split = htmlFiles[0].Split("/");
+                    e = new WebpageEvaluation(split[split.Length - 1], folder + "/");
+                }
+                System.IO.File.WriteAllText(folder + "/Grading.txt", e.evaluationText);
+                gradings[i] = folder + ":" + e.points;
+            }
+            System.IO.File.WriteAllLines(path + "Gradings.txt", gradings);
+            //WebpageEvaluation evaluation = new WebpageEvaluation("Home.html", "Website_final/");
         }
     }
     class WebpageEvaluation
     {
-        int paragraphs, headings, lists, tables, links, images, head, title, tr, td, th, validCSS, invalidCSS;
+        int paragraphs, headings, lists, tables, links, images, head, title, tr, td, th, validCSS,cssSelectors, invalidCSS, cssErrors, htmlErrors;
+        public string evaluationText;
         double maxPoints;
-        double points=0;
+        public double points = 0;
         //Dictionary<string, double> evaluations = new Dictionary<string, double>();
         string homeDirPath;
         HashSet<string> evaluatedURLs = new HashSet<string>();
@@ -36,26 +59,31 @@ namespace webGrader
         }
         public void printResult()
         {
-            evaluateResult("paragraphs",3,paragraphs,10);
-            evaluateResult("headings",2,headings,2);
-            evaluateResult("heads",2,head,2);
-            evaluateResult("images",5,images,2);
-            evaluateResult("lists",10,lists,3);
-            evaluateResult("tables",3,tables,1);
-            evaluateResult("Table rows",3,tr,5);
-            evaluateResult("Highlited table elements",2,th,2);
-            evaluateResult("Table cells",2,td,10);
-            evaluateResult("titles",2,title,2);
-            evaluateResult("valid CSS rules",10,validCSS,10);
-            evaluateResult("links",5,links,2);
-            Console.WriteLine("Invalid css rules: " + invalidCSS);
-            Console.WriteLine("Total Points (max"+maxPoints+"): " + points);
+            evaluateResult("paragraphs", 3, paragraphs, 10);
+            evaluateResult("headings", 2, headings, 2);
+            evaluateResult("heads", 2, head, 2);
+            evaluateResult("images", 5, images, 2);
+            evaluateResult("lists", 10, lists, 3);
+            evaluateResult("tables", 3, tables, 1);
+            evaluateResult("Table rows", 3, tr, 5);
+            evaluateResult("Highlited table elements", 2, th, 2);
+            evaluateResult("Table cells", 2, td, 10);
+            evaluateResult("titles", 2, title, 2);
+            evaluateResult("valid CSS selectors", 5, cssSelectors, 10);
+            evaluateResult("valid CSS rules", 5, validCSS, 10);
+            evaluateResult("links", 5, links, 2);
+            evaluateResult("html validation", 5, Math.Max(5-htmlErrors,0), 5);
+            Console.WriteLine("Invalid css selectors: " + invalidCSS);
+            Console.WriteLine("Total Points (max" + maxPoints + "): " + points);
+            evaluationText += "Invalid css rules: " + invalidCSS + Environment.NewLine + "Total Points (max" + maxPoints + "): " + points;
         }
-        public void evaluateResult(string cathegory, double maxPoints, int occurences, int wishedOccurrences){
-            double points=Math.Min(maxPoints*(double)occurences/(double) wishedOccurrences,maxPoints);
-            Console.WriteLine(cathegory+":"+occurences+"/"+wishedOccurrences+"=>"+points+"points of "+maxPoints+"points");
-            this.points+=points;
-            this.maxPoints+=maxPoints;
+        public void evaluateResult(string cathegory, double maxPoints, int occurences, int wishedOccurrences)
+        {
+            double points = Math.Min(maxPoints * (double)occurences / (double)wishedOccurrences, maxPoints);
+            Console.WriteLine(cathegory + ":" + occurences + "/" + wishedOccurrences + "=>" + points + "points of " + maxPoints + "points");
+            evaluationText += cathegory + ":" + occurences + "/" + wishedOccurrences + "=>" + points + "points of " + maxPoints + "points" + Environment.NewLine;
+            this.points += points;
+            this.maxPoints += maxPoints;
         }
         public List<string> getXPathFromStylesheet(string path)
         {
@@ -70,7 +98,7 @@ namespace webGrader
                     {
                         String line = sr.ReadLine();
                         string[] split = line.Split('{');
-                        if (!isInRule&&split[0].Length>0)
+                        if (!isInRule && split[0].Length > 0)
                         {
                             selectors.Add(MostThingsWeb.css2xpath.Transform(split[0]));
                         }
@@ -113,6 +141,10 @@ namespace webGrader
                 Console.WriteLine("No valid file path: " + path);
                 return;
             }
+            IEnumerable<HtmlParseError> errors=document.ParseErrors;
+            foreach(var i in errors){
+                htmlErrors++;
+            }
             HtmlNode current = document.DocumentNode;
             while (true)
             {
@@ -147,14 +179,21 @@ namespace webGrader
                             try
                             {
                                 HtmlAgilityPack.HtmlNodeCollection selectedElements = document.DocumentNode.SelectNodes(rule);
-                                if (selectedElements!=null&&selectedElements.Count > 0)
+                                if (selectedElements != null && selectedElements.Count > 0)
                                 {
-                                    validCSS++;
+                                    cssSelectors++;
                                 }
-                            }catch{
-                                invalidCSS++;
-                                Console.WriteLine("Fehlerhaftes CSS: "+rule);
                             }
+                            catch
+                            {
+                                invalidCSS++;
+                                Console.WriteLine("Fehlerhaftes CSS: " + rule);
+                            }
+                        }
+                        var parser = new StylesheetParser();
+                        Stylesheet stylesheet = parser.Parse(File.OpenRead(homeDirPath + current.Attributes[0].Value));
+                        foreach(var rule in stylesheet.Children){
+                            validCSS++;
                         }
                         break;
                     case "p":
