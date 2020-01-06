@@ -36,6 +36,7 @@ namespace webGrader2
                 }
                 System.IO.File.WriteAllText(folder + "/Grading.txt", e.evaluationText);
                 gradings[i] = folder + ":" + e.points;
+                i++;
             }
             System.IO.File.WriteAllLines(path + "Gradings.txt", gradings);
             //WebpageEvaluation evaluation = new WebpageEvaluation("Home.html", "Website_final/");
@@ -43,7 +44,7 @@ namespace webGrader2
     }
     class WebpageEvaluation
     {
-        int paragraphs, headings, lists, tables, links, images, head, title, tr, td, th, validCSS,cssSelectors, invalidCSS, cssErrors, htmlErrors;
+        int paragraphs, headings, lists, tables, links, images, head, title, tr, td, th, validCSS, cssSelectors, invalidCSS, cssErrors, htmlErrors;
         public string evaluationText;
         double maxPoints;
         public double points = 0;
@@ -72,7 +73,7 @@ namespace webGrader2
             evaluateResult("valid CSS selectors", 5, cssSelectors, 10);
             evaluateResult("valid CSS rules", 5, validCSS, 10);
             evaluateResult("links", 5, links, 2);
-            evaluateResult("html validation", 5, Math.Max(5-htmlErrors,0), 5);
+            evaluateResult("html validation", 5, Math.Max(5 - htmlErrors, 0), 5);
             Console.WriteLine("Invalid css selectors: " + invalidCSS);
             Console.WriteLine("Total Points (max" + maxPoints + "): " + points);
             evaluationText += "Invalid css rules: " + invalidCSS + Environment.NewLine + "Total Points (max" + maxPoints + "): " + points;
@@ -141,8 +142,9 @@ namespace webGrader2
                 Console.WriteLine("No valid file path: " + path);
                 return;
             }
-            IEnumerable<HtmlParseError> errors=document.ParseErrors;
-            foreach(var i in errors){
+            IEnumerable<HtmlParseError> errors = document.ParseErrors;
+            foreach (var i in errors)
+            {
                 htmlErrors++;
             }
             HtmlNode current = document.DocumentNode;
@@ -191,10 +193,25 @@ namespace webGrader2
                             }
                         }
                         var parser = new StylesheetParser();
-                        Stylesheet stylesheet = parser.Parse(File.OpenRead(homeDirPath + current.Attributes[0].Value));
-                        foreach(var rule in stylesheet.Children){
-                            validCSS++;
+                        try
+                        {
+
+                            Stylesheet stylesheet;
+                            foreach (var at in current.Attributes)
+                            {
+                                if (at.Name == "href")
+                                {
+                                    stylesheet = parser.Parse(File.OpenRead(homeDirPath + at.Value));
+                                    foreach (var rule in stylesheet.Children)
+                                    {
+                                        validCSS++;
+                                    }
+                                    break;
+                                }
+                            }
+
                         }
+                        catch { }
                         break;
                     case "p":
                         paragraphs++;
