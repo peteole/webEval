@@ -17,7 +17,8 @@ namespace webGrader2
         static void Main(string[] args)
         {
             Console.WriteLine("Enter file path to evaluate (for example \"/home/olep/Dropbox/webdesign/\"");
-            string path = Console.ReadLine();
+            //string path = Console.ReadLine();
+            string path="/home/olep/Dropbox/webdesign/ExampleKurs/";
             string[] folders = Directory.GetDirectories(path);
             string[] gradings = new string[folders.Length];
             int i = 0;
@@ -121,6 +122,38 @@ namespace webGrader2
             }
             return selectors;
         }
+        public static bool equals(string css1, string css2){
+            List<string> words1=getWords(css1);
+            List<string> words2=getWords(css2);
+            if(words1.Count!=words2.Count){
+                return false;
+            }
+            for(int i=0;i<words1.Count;i++){
+                if(words1[i]!=words2[i]){
+                    return false;
+                }
+            }
+            return true;
+        }
+        private static bool isWord(string w){
+            int letters=0;
+            if(w=="rgb"){
+                return false;
+            }
+            foreach(char c in w.ToCharArray()){
+                if((c>='A' && c<='Z') || (c>='a' && c<='z')){
+                    letters++;
+                }else if(c<='0'||c>='9'){
+                    return false;
+                }
+            }
+            return letters>0;
+        }
+        private static List<string> getWords(string s){
+            List<string> toReturn= new List<string>(s.Split(new char[]{' ','{','}',':','(',')','-','+',',','\t',Environment.NewLine.ToCharArray()[0]}));
+            toReturn.RemoveAll(word=>!isWord(word));
+            return toReturn;
+        }
         public void evaluateDocument(string path)
         {
             if (evaluatedURLs.Contains(path))
@@ -192,7 +225,7 @@ namespace webGrader2
                                 Console.WriteLine("Fehlerhaftes CSS: " + rule);
                             }
                         }
-                        var parser = new StylesheetParser();
+                        StylesheetParser parser = new StylesheetParser();
                         try
                         {
 
@@ -201,10 +234,20 @@ namespace webGrader2
                             {
                                 if (at.Name == "href")
                                 {
-                                    stylesheet = parser.Parse(File.OpenRead(homeDirPath + at.Value));
+                                    string rawCSS=File.ReadAllText(homeDirPath + at.Value);
+                                    stylesheet = parser.Parse(rawCSS);
+                                    string validCSS=stylesheet.ToCss();
+                                    
+                                    foreach(IStylesheetNode el in  stylesheet.Children){
+                                        
+                                        if(!equals(el.StylesheetText.Text,el.ToCss())){
+                                            cssErrors++;
+                                        }
+                                    }
+
                                     foreach (var rule in stylesheet.Children)
                                     {
-                                        validCSS++;
+                                        this.validCSS++;
                                     }
                                     break;
                                 }
@@ -257,7 +300,19 @@ namespace webGrader2
                         break;
                     case "a":
                         links++;
-                        evaluateDocument(homeDirPath + current.Attributes[0].Value);
+                        string currentFolder="";
+                        string[] f=path.Split("/");
+                        for(int i=0;i<f.Length-1;i++){
+                            currentFolder+=f[i]+"/";
+                        }
+                        foreach (var at in current.Attributes)
+                        {
+                            if (at.Name == "href")
+                            {
+                                evaluateDocument(currentFolder + at.Value);
+                                break;
+                            }
+                        }
                         break;
                     case "li":
                         lists++;
