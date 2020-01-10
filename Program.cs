@@ -17,8 +17,7 @@ namespace webGrader2
         static void Main(string[] args)
         {
             Console.WriteLine("Enter file path to evaluate (for example \"/home/olep/Dropbox/webdesign/\"");
-            //string path = Console.ReadLine();
-            string path="/home/olep/Dropbox/webdesign/ExampleKurs/";
+            string path = Console.ReadLine();
             string[] folders = Directory.GetDirectories(path);
             string[] gradings = new string[folders.Length];
             int i = 0;
